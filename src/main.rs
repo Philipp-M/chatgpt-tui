@@ -223,17 +223,22 @@ async fn run_app(mut app: App) -> Result<()> {
             if let Some(chat) = app.current_chat_mut() {
                 chat.scroll = scroll;
             }
-            if let Some(chat) = app.current_chat() {
-                let wrapped_input =
-                    textwrap::wrap(chat.input.trim(), textwrap::Options::new(terminal.size()?.width as usize));
-                let trailing_whitespace_count = chat.input.len() - chat.input.trim_end().len();
-                let term_height = terminal.size()?.height;
-                terminal.backend_mut().queue(crossterm::cursor::MoveTo(
-                    wrapped_input[wrapped_input.len() - 1].len() as u16 + trailing_whitespace_count as u16,
-                    term_height + wrapped_input.len() as u16 - 1 - 4,
-                ))?;
-                terminal.backend_mut().queue(crossterm::cursor::Show)?;
-                terminal.backend_mut().queue(crossterm::cursor::EnableBlinking)?;
+            if matches!(app.ui_mode, UiMode::Chat) {
+                if let Some(chat) = app.current_chat() {
+                    let wrapped_input =
+                        textwrap::wrap(chat.input.trim(), textwrap::Options::new(terminal.size()?.width as usize));
+                    let trailing_whitespace_count = chat.input.len() - chat.input.trim_end().len();
+                    let term_height = terminal.size()?.height;
+                    terminal.backend_mut().queue(crossterm::cursor::MoveTo(
+                        wrapped_input[wrapped_input.len() - 1].len() as u16 + trailing_whitespace_count as u16,
+                        term_height + wrapped_input.len() as u16 - 1 - 4,
+                    ))?;
+                    terminal.backend_mut().queue(crossterm::cursor::Show)?;
+                    terminal.backend_mut().queue(crossterm::cursor::EnableBlinking)?;
+                    std::io::Write::flush(&mut terminal.backend_mut())?;
+                }
+            } else {
+                terminal.backend_mut().queue(crossterm::cursor::Hide)?;
                 std::io::Write::flush(&mut terminal.backend_mut())?;
             }
         }
@@ -340,7 +345,11 @@ async fn run_app(mut app: App) -> Result<()> {
                 }
                 (UiMode::Chat, KeyCode::Esc) => {
                     app.ui_mode = UiMode::ChatSelection;
-                    app.save_state()?;
+                    if let Some(chat) = app.current_chat() {
+                        if chat.history.len() > 1 {
+                            app.save_state()?;
+                        }
+                    }
                 }
                 (UiMode::Chat, KeyCode::Up) => {
                     if let Some(chat) = app.current_chat_mut() {
