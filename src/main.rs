@@ -286,6 +286,7 @@ async fn run_app(mut app: App) -> Result<()> {
                             ),
                         }],
                     });
+                    app.ui_mode = UiMode::Chat;
                 }
                 (UiMode::ChatSelection, KeyCode::Esc | KeyCode::Char('q')) => {
                     app.quit_signal_sender.send(()).ok();
